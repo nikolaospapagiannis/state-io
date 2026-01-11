@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-400 text-gray-100 antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-dark-200 rounded-lg border border-dark-100 shadow-lg;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-dark-100 hover:bg-dark-200 text-gray-300 font-medium py-2 px-4 rounded-lg transition-colors border border-gray-700;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+  }
+
+  .input {
+    @apply bg-dark-300 border border-dark-100 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-dark-100;
+  }
+
+  .sidebar-link.active {
+    @apply bg-primary-600/20 text-primary-400 border-l-4 border-primary-500;
+  }
+
+  .stat-card {
+    @apply card p-6;
+  }
+
+  .table-header {
+    @apply bg-dark-300 text-gray-400 text-xs uppercase tracking-wider;
+  }
+
+  .table-row {
+    @apply border-b border-dark-100 hover:bg-dark-300/50 transition-colors;
+  }
+}

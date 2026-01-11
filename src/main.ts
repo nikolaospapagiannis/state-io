@@ -11,6 +11,11 @@ import { LoginScene } from './scenes/LoginScene';
 import { LobbyScene } from './scenes/LobbyScene';
 import { MultiplayerGameScene } from './scenes/MultiplayerGameScene';
 
+// Gamification Scenes
+import { AchievementsScene } from './scenes/AchievementsScene';
+import { QuestsScene } from './scenes/QuestsScene';
+import { CollectionScene } from './scenes/CollectionScene';
+
 // Add all scenes to config
 const gameConfig: Phaser.Types.Core.GameConfig = {
   ...CONFIG,
@@ -25,6 +30,10 @@ const gameConfig: Phaser.Types.Core.GameConfig = {
     LoginScene,
     LobbyScene,
     MultiplayerGameScene,
+    // Gamification Scenes
+    AchievementsScene,
+    QuestsScene,
+    CollectionScene,
   ],
 };
 

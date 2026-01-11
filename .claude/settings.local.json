@@ -8,7 +8,12 @@
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
       "Bash(npx cap sync)",
-      "Bash(npx cap:*)"
+      "Bash(npx cap:*)",
+      "Bash(wc:*)",
+      "Bash(timeout 10 npx tsx:*)",
+      "Bash(timeout 15 npx tsx:*)",
+      "Bash(timeout 20 npx tsx:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }
