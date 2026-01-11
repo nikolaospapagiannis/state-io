@@ -7,6 +7,9 @@ import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 import { VictoryScene } from './scenes/VictoryScene';
 import { LevelSelectScene } from './scenes/LevelSelectScene';
+import { LoginScene } from './scenes/LoginScene';
+import { LobbyScene } from './scenes/LobbyScene';
+import { MultiplayerGameScene } from './scenes/MultiplayerGameScene';
 
 // Add all scenes to config
 const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -19,6 +22,9 @@ const gameConfig: Phaser.Types.Core.GameConfig = {
     GameScene,
     UIScene,
     VictoryScene,
+    LoginScene,
+    LobbyScene,
+    MultiplayerGameScene,
   ],
 };
 

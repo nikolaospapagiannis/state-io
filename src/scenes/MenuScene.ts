@@ -127,21 +127,30 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createMenuButtons(width: number, height: number): void {
-    const buttonY = height * 0.55;
-    const buttonSpacing = 80;
+    const buttonY = height * 0.45;
+    const buttonSpacing = 70;
 
-    // Play button
+    // Campaign button
     this.createButton(
       width / 2,
       buttonY,
-      'PLAY',
+      'CAMPAIGN',
       () => this.scene.start('LevelSelectScene')
+    );
+
+    // Play Online button (highlighted)
+    this.createButton(
+      width / 2,
+      buttonY + buttonSpacing,
+      'PLAY ONLINE',
+      () => this.goToMultiplayer(),
+      true // highlighted
     );
 
     // Settings button
     this.createButton(
       width / 2,
-      buttonY + buttonSpacing,
+      buttonY + buttonSpacing * 2,
       'SETTINGS',
       () => this.showSettings()
     );
@@ -149,21 +158,41 @@ export class MenuScene extends Phaser.Scene {
     // How to Play button
     this.createButton(
       width / 2,
-      buttonY + buttonSpacing * 2,
+      buttonY + buttonSpacing * 3,
       'HOW TO PLAY',
       () => this.showTutorial()
     );
   }
 
-  private createButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
+  private async goToMultiplayer(): Promise<void> {
+    // Check if already logged in
+    const { networkService } = await import('../services/NetworkService');
+    const isLoggedIn = await networkService.verifyToken();
+
+    if (isLoggedIn) {
+      networkService.connect();
+      this.scene.start('LobbyScene');
+    } else {
+      this.scene.start('LoginScene');
+    }
+  }
+
+  private createButton(x: number, y: number, text: string, callback: () => void, highlighted = false): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
 
     // Button background
     const bg = this.add.graphics();
-    bg.fillStyle(COLORS.UI.panel, 0.8);
-    bg.fillRoundedRect(-120, -30, 240, 60, 15);
-    bg.lineStyle(2, COLORS.UI.accent, 0.8);
-    bg.strokeRoundedRect(-120, -30, 240, 60, 15);
+    if (highlighted) {
+      bg.fillStyle(0x005566, 0.9);
+      bg.fillRoundedRect(-120, -30, 240, 60, 15);
+      bg.lineStyle(3, 0x00f5ff, 1);
+      bg.strokeRoundedRect(-120, -30, 240, 60, 15);
+    } else {
+      bg.fillStyle(COLORS.UI.panel, 0.8);
+      bg.fillRoundedRect(-120, -30, 240, 60, 15);
+      bg.lineStyle(2, COLORS.UI.accent, 0.8);
+      bg.strokeRoundedRect(-120, -30, 240, 60, 15);
+    }
 
     // Button text
     const btnText = this.add.text(0, 0, text, {
