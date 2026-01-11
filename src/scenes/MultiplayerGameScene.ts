@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import { COLORS } from '../config/GameConfig';
-import { networkService, Room, RoomPlayer, GameState, TerritoryState, TroopState } from '../services/NetworkService';
+import { networkService, Room, RoomPlayer, GameState, TerritoryState, TroopState, QuickChatMessage, EmoteMessage, ReactionMessage } from '../services/NetworkService';
+import { QuickChatWheel, QuickChatOption } from '../ui/QuickChatWheel';
+import { EmoteWheel, EmoteOption } from '../ui/EmoteWheel';
+import { ChatBubbleManager } from '../ui/ChatBubble';
+import { PostGameReactions, ReactionType } from '../ui/PostGameReactions';
 
 interface MultiplayerTerritory extends Phaser.GameObjects.Container {
   territoryId: number;

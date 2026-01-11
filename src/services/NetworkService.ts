@@ -64,8 +64,67 @@ export interface GameState {
 export interface ChatMessage {
   socketId: string;
   username: string;
+  team?: number;
   message: string;
   timestamp: number;
+}
+
+export interface QuickChatMessage {
+  socketId: string;
+  username: string;
+  team: number;
+  messageId: string;
+  message: string;
+  translations: Record<string, string>;
+  targetTerritory?: number;
+  timestamp: number;
+}
+
+export interface EmoteMessage {
+  socketId: string;
+  username: string;
+  team: number;
+  emoteId: string;
+  emote: {
+    name: string;
+    animation: string;
+    duration: number;
+    sound?: string;
+    rarity: string;
+  };
+  targetTerritory?: number;
+  timestamp: number;
+}
+
+export interface ReactionMessage {
+  socketId: string;
+  username: string;
+  team: number;
+  reactionType: 'gg' | 'wp' | 'rematch' | 'close' | 'amazing';
+  timestamp: number;
+}
+
+export interface RematchUpdate {
+  requestCount: number;
+  totalPlayers: number;
+  requestedBy: string[];
+}
+
+export interface ChatRateLimited {
+  remaining: number;
+  resetIn: number;
+  muted: boolean;
+  muteRemaining?: number;
+}
+
+export interface ChatCooldown {
+  messageId: string;
+  cooldownRemaining: number;
+}
+
+export interface EmoteCooldown {
+  emoteId: string;
+  cooldownRemaining: number;
 }
 
 class NetworkService {
@@ -105,6 +164,18 @@ class NetworkService {
 
   // Chat callbacks
   public onChatMessage: ((message: ChatMessage) => void) | null = null;
+  public onQuickChatReceived: ((message: QuickChatMessage) => void) | null = null;
+  public onChatRateLimited: ((data: ChatRateLimited) => void) | null = null;
+  public onChatCooldown: ((data: ChatCooldown) => void) | null = null;
+
+  // Emote callbacks
+  public onEmoteReceived: ((message: EmoteMessage) => void) | null = null;
+  public onEmoteCooldown: ((data: EmoteCooldown) => void) | null = null;
+
+  // Reaction callbacks
+  public onReactionReceived: ((message: ReactionMessage) => void) | null = null;
+  public onRematchUpdate: ((data: RematchUpdate) => void) | null = null;
+  public onRematchStarted: ((data: { roomId: string; room: Room }) => void) | null = null;
 
   get isConnected(): boolean {
     return this.socket?.connected ?? false;
@@ -267,6 +338,18 @@ class NetworkService {
 
     // Chat
     this.socket.on('chat:message', (message) => this.onChatMessage?.(message));
+    this.socket.on('quickchat:received', (data) => this.onQuickChatReceived?.(data));
+    this.socket.on('chat:rateLimited', (data) => this.onChatRateLimited?.(data));
+    this.socket.on('chat:cooldown', (data) => this.onChatCooldown?.(data));
+
+    // Emotes
+    this.socket.on('emote:received', (data) => this.onEmoteReceived?.(data));
+    this.socket.on('emote:cooldown', (data) => this.onEmoteCooldown?.(data));
+
+    // Reactions
+    this.socket.on('reaction:received', (data) => this.onReactionReceived?.(data));
+    this.socket.on('rematch:update', (data) => this.onRematchUpdate?.(data));
+    this.socket.on('rematch:started', (data) => this.onRematchStarted?.(data));
   }
 
   // ============ MATCHMAKING ============
@@ -315,6 +398,28 @@ class NetworkService {
 
   sendChatMessage(message: string): void {
     this.socket?.emit('chat:send', message);
+  }
+
+  sendQuickChat(messageId: string, targetTerritory?: number): void {
+    this.socket?.emit('quickchat:send', { messageId, targetTerritory });
+  }
+
+  // ============ EMOTES ============
+
+  sendEmote(emoteId: string, targetTerritory?: number): void {
+    this.socket?.emit('emote:send', { emoteId, targetTerritory });
+  }
+
+  // ============ REACTIONS ============
+
+  sendReaction(reactionType: 'gg' | 'wp' | 'rematch' | 'close' | 'amazing'): void {
+    this.socket?.emit('reaction:send', { reactionType });
+  }
+
+  // ============ MUTING ============
+
+  mutePlayer(targetSocketId: string): void {
+    this.socket?.emit('chat:mute', { targetSocketId });
   }
 
   // ============ API CALLS ============

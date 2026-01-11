@@ -40,6 +40,10 @@ export const PERMISSIONS = {
   VIEW_ANALYTICS: 'view_analytics',
   VIEW_REVENUE: 'view_revenue',
 
+  // Economy & Revenue
+  MANAGE_ECONOMY: 'manage_economy',
+  PROCESS_REFUNDS: 'process_refunds',
+
   // Admin management
   MANAGE_ADMINS: 'manage_admins',
   VIEW_AUDIT_LOG: 'view_audit_log',
@@ -67,6 +71,8 @@ const DEFAULT_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.RESOLVE_REPORTS,
     PERMISSIONS.VIEW_CHAT_LOGS,
     PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.VIEW_REVENUE,
+    PERMISSIONS.MANAGE_ECONOMY,
     PERMISSIONS.SEND_NOTIFICATIONS,
   ],
   super_admin: Object.values(PERMISSIONS),

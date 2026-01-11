@@ -45,6 +45,10 @@ import { economyRouter } from './economy';
 import { personalizationRouter } from './personalization';
 import { liveopsRouter } from './liveops';
 
+// In-Game Communication
+import { chatRouter, initChatTables } from './chat';
+import { emoteRouter, initEmoteTables } from './emotes';
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -73,6 +77,8 @@ initRankingTables();
 initSeasonTables();
 initQuestTables();
 initCollectionTables();
+initChatTables();
+initEmoteTables();
 
 // ============ ROUTES ============
 
@@ -137,6 +143,10 @@ app.use('/api/economy', authenticateToken, economyRouter);
 app.use('/api/personalization', authenticateToken, personalizationRouter);
 app.use('/api/liveops', liveopsRouter);
 
+// In-Game Communication
+app.use('/api/chat', chatRouter);
+app.use('/api/emotes', emoteRouter);
+
 // ============ SOCKET.IO ============
 
 // Socket.io handlers
@@ -170,6 +180,8 @@ Active Systems:
   - Live Operations
   - Personalized Content Delivery
   - Push Notifications
+  - In-Game Chat System (Quick Chat)
+  - Emote System (35+ emotes)
 
 API Endpoints: 20+ route groups
 Real-time: Socket.io multiplayer

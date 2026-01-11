@@ -2,6 +2,8 @@ import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { userQueries, matchQueries, clanQueries } from './database';
+import { QUICK_CHAT_MESSAGES, filterProfanity, checkRateLimit, checkQuickChatCooldown, chatQueries } from './chat';
+import { EMOTES, checkEmoteCooldown, canUserUseEmote, emoteQueries } from './emotes';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'stateio-secret-key-change-in-production';
 
@@ -361,9 +363,11 @@ export function setupSocketHandlers(io: Server): void {
       checkGameEnd(io, room);
     });
 
-    // ============ CHAT ============
+    // ============ QUICK CHAT ============
 
-    socket.on('chat:send', (message: string) => {
+    socket.on('quickchat:send', (data: { messageId: string; targetTerritory?: number }) => {
+      if (socket.data.guest) return;
+
       const roomId = playerRooms.get(socket.id);
       if (!roomId) return;
 
@@ -373,16 +377,226 @@ export function setupSocketHandlers(io: Server): void {
       const player = room.players.get(socket.id);
       if (!player) return;
 
-      // Sanitize message
+      const { messageId, targetTerritory } = data;
+
+      // Validate message exists
+      const message = QUICK_CHAT_MESSAGES.find(m => m.id === messageId);
+      if (!message) {
+        socket.emit('error', { message: 'Invalid quick chat message' });
+        return;
+      }
+
+      // Check rate limit
+      const rateLimit = checkRateLimit(socket.data.userId);
+      if (!rateLimit.allowed) {
+        socket.emit('chat:rateLimited', {
+          remaining: rateLimit.remaining,
+          resetIn: rateLimit.resetIn,
+          muted: rateLimit.muted,
+          muteRemaining: rateLimit.muteRemaining,
+        });
+        return;
+      }
+
+      // Check message-specific cooldown
+      const cooldown = checkQuickChatCooldown(socket.data.userId, messageId);
+      if (!cooldown.allowed) {
+        socket.emit('chat:cooldown', {
+          messageId,
+          cooldownRemaining: cooldown.cooldownRemaining,
+        });
+        return;
+      }
+
+      // Check if message is unlocked for user (if not default available)
+      if (!message.available && message.unlockRequirement) {
+        // TODO: Check unlock status from chat preferences
+      }
+
+      // Log the message for moderation
+      chatQueries.logMessage.run(
+        socket.data.userId,
+        roomId,
+        'quick_chat',
+        messageId,
+        null,
+        null,
+        0,
+        Date.now()
+      );
+
+      // Broadcast to room
+      io.to(roomId).emit('quickchat:received', {
+        socketId: socket.id,
+        username: player.username,
+        team: player.team,
+        messageId,
+        message: message.translations['en'], // Default to English
+        translations: message.translations,
+        targetTerritory,
+        timestamp: Date.now(),
+      });
+    });
+
+    // Custom text chat (for lobbies/post-game)
+    socket.on('chat:send', (message: string) => {
+      if (socket.data.guest) return;
+
+      const roomId = playerRooms.get(socket.id);
+      if (!roomId) return;
+
+      const room = rooms.get(roomId);
+      if (!room) return;
+
+      const player = room.players.get(socket.id);
+      if (!player) return;
+
+      // Check rate limit
+      const rateLimit = checkRateLimit(socket.data.userId);
+      if (!rateLimit.allowed) {
+        socket.emit('chat:rateLimited', {
+          remaining: rateLimit.remaining,
+          resetIn: rateLimit.resetIn,
+          muted: rateLimit.muted,
+          muteRemaining: rateLimit.muteRemaining,
+        });
+        return;
+      }
+
+      // Sanitize and filter message
       const sanitized = message.substring(0, 200).trim();
       if (!sanitized) return;
+
+      const { filtered, containsProfanity } = filterProfanity(sanitized);
+
+      // Log the message
+      chatQueries.logMessage.run(
+        socket.data.userId,
+        roomId,
+        'custom',
+        null,
+        sanitized,
+        filtered,
+        containsProfanity ? 1 : 0,
+        Date.now()
+      );
 
       io.to(roomId).emit('chat:message', {
         socketId: socket.id,
         username: player.username,
-        message: sanitized,
+        team: player.team,
+        message: filtered, // Send filtered message
         timestamp: Date.now(),
       });
+    });
+
+    // ============ EMOTES ============
+
+    socket.on('emote:send', (data: { emoteId: string; targetTerritory?: number }) => {
+      if (socket.data.guest) return;
+
+      const roomId = playerRooms.get(socket.id);
+      if (!roomId) return;
+
+      const room = rooms.get(roomId);
+      if (!room) return;
+
+      const player = room.players.get(socket.id);
+      if (!player) return;
+
+      const { emoteId, targetTerritory } = data;
+
+      // Validate emote exists
+      const emote = EMOTES.find(e => e.id === emoteId);
+      if (!emote) {
+        socket.emit('error', { message: 'Invalid emote' });
+        return;
+      }
+
+      // Check if user has access to this emote
+      if (!canUserUseEmote(socket.data.userId, emoteId)) {
+        socket.emit('error', { message: 'Emote not unlocked' });
+        return;
+      }
+
+      // Check cooldown
+      const cooldown = checkEmoteCooldown(socket.data.userId, emoteId);
+      if (!cooldown.allowed) {
+        socket.emit('emote:cooldown', {
+          emoteId,
+          cooldownRemaining: cooldown.cooldownRemaining,
+        });
+        return;
+      }
+
+      // Track usage
+      emoteQueries.trackUsage.run(socket.data.userId, emoteId, roomId, Date.now());
+      emoteQueries.incrementUsage.run(socket.data.userId, emoteId);
+      emoteQueries.updateAnalytics.run(emoteId, Date.now());
+
+      // Broadcast to room
+      io.to(roomId).emit('emote:received', {
+        socketId: socket.id,
+        username: player.username,
+        team: player.team,
+        emoteId,
+        emote: {
+          name: emote.name,
+          animation: emote.animation,
+          duration: emote.duration,
+          sound: emote.sound,
+          rarity: emote.rarity,
+        },
+        targetTerritory,
+        timestamp: Date.now(),
+      });
+    });
+
+    // ============ POST-GAME REACTIONS ============
+
+    socket.on('reaction:send', (data: { reactionType: 'gg' | 'wp' | 'rematch' | 'close' | 'amazing' }) => {
+      if (socket.data.guest) return;
+
+      const roomId = playerRooms.get(socket.id);
+      if (!roomId) return;
+
+      const room = rooms.get(roomId);
+      if (!room || room.status !== 'finished') return;
+
+      const player = room.players.get(socket.id);
+      if (!player) return;
+
+      const { reactionType } = data;
+
+      // Validate reaction type
+      const validReactions = ['gg', 'wp', 'rematch', 'close', 'amazing'];
+      if (!validReactions.includes(reactionType)) {
+        socket.emit('error', { message: 'Invalid reaction' });
+        return;
+      }
+
+      // Broadcast to room
+      io.to(roomId).emit('reaction:received', {
+        socketId: socket.id,
+        username: player.username,
+        team: player.team,
+        reactionType,
+        timestamp: Date.now(),
+      });
+
+      // If rematch, handle rematch request
+      if (reactionType === 'rematch') {
+        handleRematchRequest(io, room, socket.id);
+      }
+    });
+
+    // ============ MUTING ============
+
+    socket.on('chat:mute', (data: { targetSocketId: string }) => {
+      if (socket.data.guest) return;
+
+      // Client-side muting (store in user preferences)
+      socket.emit('chat:muted', { targetSocketId: data.targetSocketId });
     });
 
     // ============ DISCONNECT ============
@@ -794,4 +1008,72 @@ function serializePlayer(player: Player): object {
     ready: player.ready,
     connected: player.connected,
   };
+}
+
+// ============ REMATCH HANDLING ============
+
+const rematchRequests = new Map<string, Set<string>>(); // roomId -> set of socketIds who want rematch
+
+function handleRematchRequest(io: Server, room: GameRoom, socketId: string): void {
+  const roomId = room.id;
+
+  if (!rematchRequests.has(roomId)) {
+    rematchRequests.set(roomId, new Set());
+  }
+
+  const requests = rematchRequests.get(roomId)!;
+  requests.add(socketId);
+
+  // Notify room of rematch request count
+  io.to(roomId).emit('rematch:update', {
+    requestCount: requests.size,
+    totalPlayers: room.players.size,
+    requestedBy: Array.from(requests),
+  });
+
+  // Check if all players want rematch
+  const connectedPlayers = Array.from(room.players.values()).filter(p => p.connected);
+  if (requests.size >= connectedPlayers.length && connectedPlayers.length >= 2) {
+    // Create new room with same settings
+    const newRoomId = uuidv4().substring(0, 8).toUpperCase();
+
+    const newRoom: GameRoom = {
+      id: newRoomId,
+      mode: room.mode,
+      status: 'waiting',
+      players: new Map(),
+      maxPlayers: room.maxPlayers,
+      teamsCount: room.teamsCount,
+      mapId: Math.floor(Math.random() * 40) + 1, // New random map
+      hostId: connectedPlayers[0].socketId,
+      gameState: null,
+      createdAt: Date.now(),
+    };
+
+    // Move players to new room
+    connectedPlayers.forEach(player => {
+      const newPlayer: Player = {
+        ...player,
+        ready: false,
+      };
+
+      newRoom.players.set(player.socketId, newPlayer);
+      playerRooms.set(player.socketId, newRoomId);
+
+      const socket = io.sockets.sockets.get(player.socketId);
+      if (socket) {
+        socket.leave(roomId);
+        socket.join(newRoomId);
+      }
+    });
+
+    rooms.set(newRoomId, newRoom);
+    rematchRequests.delete(roomId);
+
+    // Notify players of rematch
+    io.to(newRoomId).emit('rematch:started', {
+      roomId: newRoomId,
+      room: serializeRoom(newRoom),
+    });
+  }
 }
