@@ -1,0 +1,33 @@
+{
+  "name": "state-io-clone",
+  "version": "1.0.0",
+  "description": "State.io Clone - Territory Conquest Strategy Game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "cap:init": "cap init StateIO com.stateio.game --web-dir dist",
+    "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios",
+    "mobile:build": "npm run build && npm run cap:sync"
+  },
+  "keywords": ["game", "phaser", "strategy", "state.io", "clone"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "@types/node": "^25.0.6",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
